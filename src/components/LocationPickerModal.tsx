@@ -15,6 +15,7 @@ import {
   StatusBar,
 } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -26,6 +27,11 @@ export interface LocationData {
   address: string;
   latitude: number;
   longitude: number;
+}
+
+// Add a label for saved locations
+export interface SavedLocation extends LocationData {
+  label: string;
 }
 
 interface LocationPickerModalProps {
@@ -42,6 +48,7 @@ const LocationPickerModal = ({
   const [view, setView] = useState<'search' | 'map'>('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [predictions, setPredictions] = useState<any[]>([]);
+  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
   const [region, setRegion] = useState<Region>({
     latitude: 37.7749,
     longitude: -122.4194,
@@ -49,13 +56,33 @@ const LocationPickerModal = ({
     longitudeDelta: 0.0421,
   });
 
+  // Load saved locations from AsyncStorage when the modal becomes visible
   useEffect(() => {
+    const loadSavedLocations = async () => {
+      try {
+        const jsonValue = await AsyncStorage.getItem('@saved_locations');
+        if (jsonValue != null) {
+          setSavedLocations(JSON.parse(jsonValue));
+        } else {
+          // For now, let's add some placeholder data to see the UI
+          setSavedLocations([
+              { label: 'Home', address: '123 Main St, Sunnyvale, CA', latitude: 37.38, longitude: -122.03 },
+              { label: 'Work', address: '456 Tech Park, Mountain View, CA', latitude: 37.42, longitude: -122.08 },
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load locations.", e);
+      }
+    };
+
     if (visible) {
+      loadSavedLocations();
       setSearchQuery('');
       setPredictions([]);
       setView('search');
     }
   }, [visible]);
+
 
   useEffect(() => {
     if (searchQuery.length < 3) {
@@ -126,6 +153,30 @@ const LocationPickerModal = ({
 
   const renderSearchView = () => (
     <View style={styles.content}>
+      {/* --- NEW SAVED LOCATIONS SECTION --- */}
+      {savedLocations.length > 0 && (
+        <View style={styles.savedContainer}>
+            <Text style={styles.savedHeader}>Saved Locations</Text>
+            {savedLocations.map((item) => (
+                <TouchableOpacity
+                    key={item.label}
+                    style={styles.savedItem}
+                    onPress={() => {
+                        onLocationSelect(item);
+                        onClose();
+                    }}
+                >
+                    <Feather name="star" size={20} color={Colors.accentElevated} style={styles.savedIcon} />
+                    <View>
+                        <Text style={Typography.body}>{item.label}</Text>
+                        <Text style={styles.savedAddress}>{item.address}</Text>
+                    </View>
+                </TouchableOpacity>
+            ))}
+        </View>
+      )}
+      {/* ------------------------------------ */}
+
       <TextInput
         style={styles.searchInput}
         placeholder="Search for a place or address"
@@ -219,6 +270,29 @@ const styles = StyleSheet.create({
   },
   closeButton: { ...Typography.body, color: Colors.accentCalm },
   content: { flex: 1, padding: 20 },
+  // --- NEW STYLES for Saved Locations ---
+  savedContainer: {
+    marginBottom: 20,
+  },
+  savedHeader: {
+      ...Typography.h2,
+      marginBottom: 10,
+  },
+  savedItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: Colors.surface,
+  },
+  savedIcon: {
+      marginRight: 15,
+  },
+  savedAddress: {
+      ...Typography.metadata,
+      marginTop: 2,
+  },
+  // ------------------------------------
   searchInput: {
     ...Typography.body,
     backgroundColor: Colors.surface,
@@ -258,8 +332,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40, // Offset to align the pin's tip with the true center
-    pointerEvents: 'none', // Make sure the pin doesn't block map interactions
+    marginBottom: 40, 
+    pointerEvents: 'none',
   },
   backButton: {
     position: 'absolute',

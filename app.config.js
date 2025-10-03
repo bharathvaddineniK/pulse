@@ -34,6 +34,10 @@ module.exports = {
           apiKey: process.env.GOOGLE_MAPS_API_KEY,
         },
       },
+      permissions: [
+        'ACCESS_COARSE_LOCATION',
+        'ACCESS_FINE_LOCATION'
+      ],
     },
     plugins: [],
   },

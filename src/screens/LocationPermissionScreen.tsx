@@ -12,6 +12,9 @@ import { Feather } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { auth, db } from '../config/FirebaseConfig';
+import * as Location from 'expo-location';
+import { GOOGLE_MAPS_API_KEY } from '@env';
+
 import { Colors } from '../constants/Colors';
 import { Typography } from '../constants/Typography';
 import Button from '../components/Button';
@@ -40,10 +43,12 @@ const LocationPermissionScreen = ({
     try {
       const user = auth.currentUser;
       if (user) {
-        // Use the new API for updating the document
         const userDocRef = db.collection('users').doc(user.uid);
         await userDocRef.update({ location: location });
-        navigation.navigate('Home');
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+        });
       }
     } catch (error) {
       Alert.alert('Error', 'Could not save location. Please try again.');
@@ -51,6 +56,40 @@ const LocationPermissionScreen = ({
       setIsLoading(false);
     }
   };
+
+  const handlePreciseLocation = async () => {
+    setIsLoading(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Pulse needs location access to show you what\'s happening nearby. You can enable it in your device settings.'
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      // Reverse geocode to get the address
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`;
+      const response = await fetch(url);
+      const json = await response.json();
+
+      if (json.status === 'OK' && json.results.length > 0) {
+        const address = json.results[0].formatted_address;
+        await handleLocationSelect({ address, latitude, longitude });
+      } else {
+        throw new Error('Could not determine address.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not get location. Please try again or set it manually.');
+      setIsLoading(false);
+    }
+  };
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -66,7 +105,7 @@ const LocationPermissionScreen = ({
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button title="Use Precise Location" onPress={() => {}} />
+        <Button title="Use Precise Location" onPress={handlePreciseLocation} />
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={() => setIsModalVisible(true)}>

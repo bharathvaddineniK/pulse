@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { auth, db } from '../config/FirebaseConfig';
+import { auth, db } from '../config/FirebaseConfig'; // Using the classic namespaced import
 import firestore from '@react-native-firebase/firestore';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { uniqueNamesGenerator, adjectives, animals } from 'unique-names-generator';
@@ -49,7 +49,7 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
 
-  // This full useEffect handles the timer correctly, including backgrounding
+  // ... (useEffect for timer remains the same)
   const appState = useRef(AppState.currentState);
   const timeInBackground = useRef(0);
   useEffect(() => {
@@ -72,9 +72,12 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
 
     return () => {
       subscription.remove();
-      clearInterval(timer);
+      if (timer) {
+        clearInterval(timer);
+      }
     };
   }, [isCodeInputVisible, countdown]);
+
 
   const handleSendCode = async () => {
     if (!phoneInputRef.current?.isValid()) {
@@ -82,9 +85,11 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
     }
     setIsLoading(true);
     try {
-      const confirmationResult = await auth.signInWithPhoneNumber(formattedValue);
+      // NEW DIAGNOSTIC STEP: The 'true' argument forces the reCAPTCHA verifier to appear.
+      const confirmationResult = await auth.signInWithPhoneNumber(formattedValue, true);
+      
       setConfirmation(confirmationResult);
-      setCountdown(59); // Reset timer
+      setCountdown(59);
       setIsCodeInputVisible(true);
     } catch (error: any) {
       Alert.alert('Firebase Error', `Something went wrong: ${error.message}`);
@@ -93,7 +98,20 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
     }
   };
 
-  const handleResendCode = () => { handleSendCode(); };
+  const handleResendCode = async () => {
+    if (countdown > 0) return;
+    setIsLoading(true);
+    try {
+        // Also apply the diagnostic step here
+        const confirmationResult = await auth.signInWithPhoneNumber(formattedValue, true);
+        setConfirmation(confirmationResult);
+        setCountdown(59);
+    } catch (error: any) {
+        Alert.alert('Firebase Error', `Something went wrong: ${error.message}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   const handleVerifyCode = async (code: string) => {
     if (!confirmation) return;
@@ -119,11 +137,14 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
       setIsLoading(false);
     }
   };
-  
-  // This new function resets the state to fix the infinite loading bug
+
   const handleChangeNumber = () => {
     setConfirmation(null);
     setIsCodeInputVisible(false);
+    setIsLoading(false);
+    setValue('');
+    setFormattedValue('');
+    setCountdown(59);
   };
 
   const maskPhoneNumber = (num: string) => {
@@ -155,7 +176,7 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
         <OtpInput onComplete={handleVerifyCode} />
         <View style={styles.linksContainer}>
           <TextLink label="Change Number" style={styles.link} onPress={handleChangeNumber} />
-          <TextLink label={countdown > 0 ? `Resend code in ${countdown}s` : 'Resend Code'} style={countdown > 0 ? [styles.link, styles.resendLink] : styles.link} onPress={countdown > 0 ? () => {} : handleResendCode} />
+          <TextLink label={countdown > 0 ? `Resend code in ${countdown}s` : 'Resend Code'} style={countdown > 0 ? [styles.link, styles.resendLink] : styles.link} onPress={handleResendCode} />
         </View>
       </View>
       <View style={{ height: 60 }} />
