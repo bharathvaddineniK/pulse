@@ -71,9 +71,9 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
       try {
         const user = auth.currentUser;
         if (user) {
-          // Use the new API for updating the document
+          // Use set with merge: true for a robust update/create operation
           const userDocRef = db.collection('users').doc(user.uid);
-          await userDocRef.update({ onboardingComplete: true });
+          await userDocRef.set({ onboardingComplete: true }, { merge: true });
           navigation.navigate('LocationPermission');
         } else {
           Alert.alert(
@@ -82,6 +82,7 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
           );
         }
       } catch (error) {
+        console.error("Update profile error:", error);
         Alert.alert('Error', 'Could not update profile. Please try again.');
       } finally {
         setIsLoading(false);

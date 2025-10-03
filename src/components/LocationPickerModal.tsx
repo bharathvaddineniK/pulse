@@ -20,7 +20,7 @@ import { Feather } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { Typography } from '../constants/Typography';
 import Button from './Button';
-import { mapStyle } from '../constants/mapStyle'; // We'll create this file next
+import { mapStyle } from '../constants/mapStyle';
 
 export interface LocationData {
   address: string;
@@ -57,14 +57,15 @@ const LocationPickerModal = ({
     }
   }, [visible]);
 
-  // ... (useEffect for search remains the same)
   useEffect(() => {
     if (searchQuery.length < 3) {
       setPredictions([]);
       return;
     }
     const handler = setTimeout(async () => {
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(searchQuery)}&key=${GOOGLE_MAPS_API_KEY}`;
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+        searchQuery
+      )}&key=${GOOGLE_MAPS_API_KEY}`;
       try {
         const response = await fetch(url);
         const json = await response.json();
@@ -80,9 +81,7 @@ const LocationPickerModal = ({
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-
   const handleSelectPlace = async (placeId: string) => {
-    // ... (handleSelectPlace remains the same)
     Keyboard.dismiss();
     const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${GOOGLE_MAPS_API_KEY}`;
     try {
@@ -126,11 +125,33 @@ const LocationPickerModal = ({
   };
 
   const renderSearchView = () => (
-    // ... (renderSearchView remains the same)
     <View style={styles.content}>
-      <TextInput style={styles.searchInput} placeholder="Search for a place or address" placeholderTextColor={Colors.textSecondary} value={searchQuery} onChangeText={setSearchQuery} />
-      {predictions.length > 0 && ( <FlatList data={predictions} keyExtractor={item => item.place_id} keyboardShouldPersistTaps="handled" renderItem={({ item }) => ( <TouchableOpacity style={styles.listRow} onPress={() => handleSelectPlace(item.place_id)}> <Text style={Typography.body}>{item.description}</Text> </TouchableOpacity> )} style={styles.listView} /> )}
-      <TouchableOpacity style={styles.chooseOnMapButton} onPress={() => setView('map')}>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search for a place or address"
+        placeholderTextColor={Colors.textSecondary}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+      {predictions.length > 0 && (
+        <FlatList
+          data={predictions}
+          keyExtractor={item => item.place_id}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.listRow}
+              onPress={() => handleSelectPlace(item.place_id)}>
+              <Text style={Typography.body}>{item.description}</Text>
+            </TouchableOpacity>
+          )}
+          style={styles.listView}
+        />
+      )}
+      <View style={styles.spacer} />
+      <TouchableOpacity
+        style={styles.chooseOnMapButton}
+        onPress={() => setView('map')}>
         <Feather name="map" size={16} color={Colors.textSecondary} />
         <Text style={styles.chooseOnMapText}>Choose on Map</Text>
       </TouchableOpacity>
@@ -149,7 +170,9 @@ const LocationPickerModal = ({
       <View style={styles.pinContainer}>
         <Feather name="map-pin" size={40} color={Colors.accentUrgent} />
       </View>
-      <TouchableOpacity style={styles.backButton} onPress={() => setView('search')}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => setView('search')}>
         <Feather name="arrow-left" size={24} color={Colors.textPrimary} />
       </TouchableOpacity>
       <View style={styles.confirmButtonContainer}>
@@ -161,7 +184,9 @@ const LocationPickerModal = ({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container}>
-        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <TouchableWithoutFeedback
+          onPress={() => Keyboard.dismiss()}
+          accessible={false}>
           <View style={{ flex: 1 }}>
             <View style={styles.header}>
               <Text style={Typography.h2}>Set Your Neighborhood</Text>
@@ -194,11 +219,38 @@ const styles = StyleSheet.create({
   },
   closeButton: { ...Typography.body, color: Colors.accentCalm },
   content: { flex: 1, padding: 20 },
-  searchInput: { ...Typography.body, backgroundColor: Colors.surface, borderRadius: 8, padding: 12, color: Colors.textPrimary },
-  listView: { backgroundColor: Colors.surface, marginTop: 8, borderRadius: 8, flexGrow: 0 },
-  listRow: { padding: 12, borderBottomWidth: 1, borderBottomColor: Colors.backgroundDark },
-  chooseOnMapButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, marginTop: 'auto' },
-  chooseOnMapText: { ...Typography.metadata, color: Colors.textSecondary, marginLeft: 8 },
+  searchInput: {
+    ...Typography.body,
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    padding: 12,
+    color: Colors.textPrimary,
+  },
+  listView: {
+    backgroundColor: Colors.surface,
+    marginTop: 8,
+    borderRadius: 8,
+    flexGrow: 0,
+  },
+  listRow: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.backgroundDark,
+  },
+  spacer: {
+    flex: 1,
+  },
+  chooseOnMapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  chooseOnMapText: {
+    ...Typography.metadata,
+    color: Colors.textSecondary,
+    marginLeft: 8,
+  },
   mapContainer: {
     flex: 1,
   },
@@ -206,9 +258,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    // Add a slight offset to align the pin's tip to the true center
-    marginBottom: 40,
-    pointerEvents: 'none',
+    marginBottom: 40, // Offset to align the pin's tip with the true center
+    pointerEvents: 'none', // Make sure the pin doesn't block map interactions
   },
   backButton: {
     position: 'absolute',

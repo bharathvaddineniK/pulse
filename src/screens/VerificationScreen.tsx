@@ -30,7 +30,6 @@ const generateUniqueUsername = async (): Promise<string> => {
       separator: '',
       style: 'capital',
     });
-    // Use the new API for querying Firestore
     const usersQuery = await db.collection('users').where('username', '==', randomName).get();
     if (usersQuery.empty) {
       return randomName;
@@ -48,13 +47,34 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
   const [isCodeInputVisible, setIsCodeInputVisible] = useState(false);
   const [countdown, setCountdown] = useState(59);
   const [isLoading, setIsLoading] = useState(false);
-  // Use the ConfirmationResult type from the new library
   const [confirmation, setConfirmation] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
 
-  // ... (useEffect for timer remains the same)
+  // This full useEffect handles the timer correctly, including backgrounding
   const appState = useRef(AppState.currentState);
   const timeInBackground = useRef(0);
-  useEffect(() => { /* ... timer logic ... */ }, [isCodeInputVisible, countdown]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        const elapsed = Math.floor((Date.now() - timeInBackground.current) / 1000);
+        setCountdown(prev => Math.max(0, prev - elapsed));
+      } else if (nextAppState.match(/inactive|background/)) {
+        timeInBackground.current = Date.now();
+      }
+      appState.current = nextAppState;
+    });
+
+    let timer: NodeJS.Timeout;
+    if (isCodeInputVisible && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+    }
+
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
+  }, [isCodeInputVisible, countdown]);
 
   const handleSendCode = async () => {
     if (!phoneInputRef.current?.isValid()) {
@@ -62,10 +82,9 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
     }
     setIsLoading(true);
     try {
-      // Use the new API: auth.signInWithPhoneNumber() - no verifier needed for native
       const confirmationResult = await auth.signInWithPhoneNumber(formattedValue);
       setConfirmation(confirmationResult);
-      setCountdown(59);
+      setCountdown(59); // Reset timer
       setIsCodeInputVisible(true);
     } catch (error: any) {
       Alert.alert('Firebase Error', `Something went wrong: ${error.message}`);
@@ -83,12 +102,11 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
       const userCredential = await confirmation.confirm(code);
       if (userCredential && userCredential.additionalUserInfo?.isNewUser) {
         const username = await generateUniqueUsername();
-        // Use the new API for setting a document
         await db.collection('users').doc(userCredential.user.uid).set({
           uid: userCredential.user.uid,
           phoneNumber: userCredential.user.phoneNumber,
           username: username,
-          createdAt: firestore.Timestamp.now(), // Use new API for Timestamp
+          createdAt: firestore.Timestamp.now(),
           onboardingComplete: false,
         });
         navigation.navigate('Onboarding');
@@ -101,12 +119,18 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
       setIsLoading(false);
     }
   };
+  
+  // This new function resets the state to fix the infinite loading bug
+  const handleChangeNumber = () => {
+    setConfirmation(null);
+    setIsCodeInputVisible(false);
+  };
 
-  // ... (render functions and styles remain the same)
   const maskPhoneNumber = (num: string) => {
     if (num.length < 8) return num;
     return `${num.substring(0, 4)} (•••) •••-${num.substring(num.length - 4)}`;
   };
+
   const renderPhoneInputView = () => (
     <>
       <View>
@@ -120,6 +144,7 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
       <Button title="Send Code" onPress={handleSendCode} />
     </>
   );
+
   const renderCodeInputView = () => (
     <>
       <View>
@@ -129,7 +154,7 @@ const VerificationScreen = ({ navigation }: VerificationScreenProps) => {
       <View style={styles.inputContainer}>
         <OtpInput onComplete={handleVerifyCode} />
         <View style={styles.linksContainer}>
-          <TextLink label="Change Number" style={styles.link} onPress={() => setIsCodeInputVisible(false)} />
+          <TextLink label="Change Number" style={styles.link} onPress={handleChangeNumber} />
           <TextLink label={countdown > 0 ? `Resend code in ${countdown}s` : 'Resend Code'} style={countdown > 0 ? [styles.link, styles.resendLink] : styles.link} onPress={countdown > 0 ? () => {} : handleResendCode} />
         </View>
       </View>
