@@ -8,6 +8,7 @@ import { Colors } from '../constants/Colors';
 import { Typography } from '../constants/Typography';
 import { Feather } from '@expo/vector-icons';
 import LocationPickerModal, { LocationData } from '../components/LocationPickerModal';
+import WeatherTile from '../components/WeatherTile'; // Import the new component
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -23,19 +24,25 @@ interface UserData {
   location?: LocationData;
 }
 
-// CORRECTED: A much more robust function to shorten the address
+interface WeatherData {
+    temperature: number;
+    weatherCode: number;
+}
+
 const truncateAddress = (address: string | undefined): string => {
     if (!address) return 'Set Location';
     const firstCommaIndex = address.indexOf(',');
     if (firstCommaIndex !== -1) {
-        return address.substring(0, firstCommaIndex); // Return only the part before the first comma
+        return address.substring(0, firstCommaIndex);
     }
-    return address; // If no comma, it's likely already short
+    return address;
 };
 
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [isWeatherLoading, setIsWeatherLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -52,6 +59,35 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     };
     fetchUserData();
   }, []);
+
+  // Effect to fetch weather when user location is available or changes
+  useEffect(() => {
+    const fetchWeather = async () => {
+      if (userData?.location) {
+        setIsWeatherLoading(true);
+        const { latitude, longitude } = userData.location;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&temperature_unit=fahrenheit`;
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+          if (data.current_weather) {
+            setWeatherData({
+              temperature: data.current_weather.temperature,
+              weatherCode: data.current_weather.weathercode,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to fetch weather:", error);
+          setWeatherData(null); // Clear data on error
+        } finally {
+          setIsWeatherLoading(false);
+        }
+      }
+    };
+
+    fetchWeather();
+  }, [userData?.location]);
+
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -96,8 +132,8 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
-        <Text style={Typography.h1}>Bento Grid Placeholder</Text>
-        <Text style={styles.placeholderText}>The main grid content will go here.</Text>
+        {/* Replace the placeholder with the new WeatherTile */}
+        <WeatherTile weatherData={weatherData} isLoading={isWeatherLoading} />
       </ScrollView>
 
       <View style={styles.tabBar}>
@@ -139,12 +175,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
-  },
-  placeholderText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 20,
   },
   tabBar: {
     flexDirection: 'row',

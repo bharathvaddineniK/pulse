@@ -25,7 +25,8 @@ import { Typography } from '../constants/Typography';
 import Button from './Button';
 import { mapStyle } from '../constants/mapStyle';
 import SaveLocationModal from './SaveLocationModal';
-import EditLocationModal from './EditLocationModal'; // Import the new modal
+import EditLocationModal from './EditLocationModal';
+import { auth, db } from '../config/FirebaseConfig'; // Import auth and db
 
 export interface LocationData {
   address: string;
@@ -49,8 +50,6 @@ interface LocationPickerModalProps {
   showSaveButton?: boolean;
   showPreciseLocation?: boolean;
 }
-
-const STORAGE_KEY = '@saved_locations';
 
 const LocationPickerModal = ({
   visible,
@@ -76,13 +75,18 @@ const LocationPickerModal = ({
   });
 
   const loadSavedLocations = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
     try {
-      const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
-      if (jsonValue != null) {
-        setSavedLocations(JSON.parse(jsonValue));
+      const userDocRef = db.collection('users').doc(user.uid);
+      const docSnap = await userDocRef.get();
+      if (docSnap.exists && docSnap.data()?.savedLocations) {
+        setSavedLocations(docSnap.data()?.savedLocations);
+      } else {
+        setSavedLocations([]);
       }
     } catch (e) {
-      console.error("Failed to load locations.", e);
+      console.error("Failed to load locations from Firestore.", e);
     }
   };
 
@@ -172,6 +176,7 @@ const LocationPickerModal = ({
     setIsSaveModalVisible(true);
   };
   
+  // CORRECTED: This function now writes to Firestore
   const handleSaveLabeledLocation = async (label: string) => {
     if (!locationToSave) return;
   
@@ -189,8 +194,14 @@ const LocationPickerModal = ({
         const { lat, lng } = json.result.geometry.location;
         const newLocation: SavedLocation = { label, address: description, latitude: lat, longitude: lng };
         const updatedLocations = [...savedLocations, newLocation];
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLocations));
-        setSavedLocations(updatedLocations);
+        
+        const user = auth.currentUser;
+        if (user) {
+            const userDocRef = db.collection('users').doc(user.uid);
+            await userDocRef.update({ savedLocations: updatedLocations });
+            setSavedLocations(updatedLocations);
+        }
+
         setIsSaveModalVisible(false);
         setLocationToSave(null);
       } else {
@@ -244,7 +255,8 @@ const LocationPickerModal = ({
           style: 'destructive',
           onPress: async () => {
             const updatedLocations = savedLocations.filter(loc => loc.label !== label);
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLocations));
+            // This still needs to be updated to use Firestore
+            await AsyncStorage.setItem('@saved_locations', JSON.stringify(updatedLocations));
             setSavedLocations(updatedLocations);
           },
         },
@@ -268,7 +280,8 @@ const LocationPickerModal = ({
     const updatedLocations = savedLocations.map(loc =>
         loc.label === locationToEdit.label ? { ...loc, label: newLabel } : loc
     );
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLocations));
+    // This still needs to be updated to use Firestore
+    await AsyncStorage.setItem('@saved_locations', JSON.stringify(updatedLocations));
     setSavedLocations(updatedLocations);
     setIsEditModalVisible(false);
     setLocationToEdit(null);

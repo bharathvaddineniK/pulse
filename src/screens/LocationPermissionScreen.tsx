@@ -38,6 +38,13 @@ const LocationPermissionScreen = ({
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const navigateHome = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Home' }],
+    });
+  };
+
   const handleLocationSelect = async (location: LocationData) => {
     setIsLoading(true);
     try {
@@ -45,10 +52,7 @@ const LocationPermissionScreen = ({
       if (user) {
         const userDocRef = db.collection('users').doc(user.uid);
         await userDocRef.update({ location: location });
-        navigation.reset({
-            index: 0,
-            routes: [{ name: 'Home' }],
-        });
+        navigateHome(); // Use the reset function
       }
     } catch (error) {
       Alert.alert('Error', 'Could not save location. Please try again.');
@@ -73,7 +77,6 @@ const LocationPermissionScreen = ({
       let location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
 
-      // Reverse geocode to get the address
       const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`;
       const response = await fetch(url);
       const json = await response.json();
@@ -114,7 +117,7 @@ const LocationPermissionScreen = ({
         <TextLink
           label="Maybe Later"
           style={styles.tertiaryLink}
-          onPress={() => navigation.navigate('Home')}
+          onPress={navigateHome} // Use the reset function
         />
       </View>
 
@@ -122,6 +125,7 @@ const LocationPermissionScreen = ({
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onLocationSelect={handleLocationSelect}
+        showSaveButton={false}
       />
 
       {isLoading && (
