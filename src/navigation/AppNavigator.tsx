@@ -8,6 +8,8 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LocationPermissionScreen from '../screens/LocationPermissionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import DetailedWeatherScreen from '../screens/DetailedWeatherScreen'; // Keep this screen
+import CreatePulseScreen from '../screens/CreatePulseScreen';       // And also add this screen
 import { Colors } from '../constants/Colors';
 import { Typography } from '../constants/Typography';
 
@@ -19,6 +21,8 @@ export type RootStackParamList = {
   Home: undefined;
   LocationPermission: undefined;
   Settings: undefined;
+  DetailedWeather: undefined; // Keep this route
+  CreatePulse: undefined;       // And also add this route
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -45,8 +49,8 @@ const AppNavigator = () => {
           component={HomeScreen}
           options={{
             headerShown: true,
-            headerStyle: { backgroundColor: Colors.backgroundDark }, // Make header transparent
-            headerShadowVisible: false, // Remove separator line
+            headerStyle: { backgroundColor: Colors.backgroundDark },
+            headerShadowVisible: false,
           }}
         />
         <Stack.Screen
@@ -59,6 +63,23 @@ const AppNavigator = () => {
           options={{
             headerShown: true,
             headerTitle: 'Settings',
+          }}
+        />
+        <Stack.Screen
+          name="DetailedWeather"
+          component={DetailedWeatherScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Weather Details',
+          }}
+        />
+        <Stack.Screen
+          name="CreatePulse"
+          component={CreatePulseScreen}
+          options={{
+            headerShown: true,
+            headerTitle: 'Create a Pulse',
+            presentation: 'modal',
           }}
         />
       </Stack.Navigator>

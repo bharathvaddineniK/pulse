@@ -7,108 +7,88 @@ import Animated, {
   withRepeat,
   withTiming,
   withSequence,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { Colors } from '../constants/Colors';
 import { Typography } from '../constants/Typography';
 
-const weatherInfo: { [key: number]: { icon: keyof typeof Feather.glyphMap; description: string } } = {
-    0: { icon: 'sun', description: 'Clear Sky' },
-    1: { icon: 'sun', description: 'Mainly Clear' },
-    2: { icon: 'cloud', description: 'Partly Cloudy' },
-    3: { icon: 'cloud', description: 'Overcast' },
-    45: { icon: 'align-justify', description: 'Fog' },
-    48: { icon: 'align-justify', description: 'Rime Fog' },
-    51: { icon: 'cloud-drizzle', description: 'Light Drizzle' },
-    53: { icon: 'cloud-drizzle', description: 'Drizzle' },
-    55: { icon: 'cloud-drizzle', description: 'Dense Drizzle' },
-    61: { icon: 'cloud-rain', description: 'Slight Rain' },
-    63: { icon: 'cloud-rain', description: 'Rain' },
-    65: { icon: 'cloud-rain', description: 'Heavy Rain' },
-    71: { icon: 'cloud-snow', description: 'Light Snow' },
-    73: { icon: 'cloud-snow', description: 'Snow' },
-    75: { icon: 'cloud-snow', description: 'Heavy Snow' },
-    80: { icon: 'cloud-drizzle', description: 'Slight Showers' },
-    81: { icon: 'cloud-drizzle', description: 'Showers' },
-    82: { icon: 'cloud-rain', description: 'Heavy Showers' },
-    95: { icon: 'cloud-lightning', description: 'Thunderstorm' },
-    96: { icon: 'cloud-lightning', description: 'Thunderstorm' },
-    99: { icon: 'cloud-lightning', description: 'Thunderstorm' },
+const weatherInfo: { [key: number]: { icon: keyof typeof Feather.glyphMap } } = {
+    0: { icon: 'sun' }, 1: { icon: 'sun' }, 2: { icon: 'cloud' }, 3: { icon: 'cloud' },
+    45: { icon: 'align-justify' }, 48: { icon: 'align-justify' },
+    51: { icon: 'cloud-drizzle' }, 53: { icon: 'cloud-drizzle' }, 55: { icon: 'cloud-drizzle' },
+    61: { icon: 'cloud-rain' }, 63: { icon: 'cloud-rain' }, 65: { icon: 'cloud-rain' },
+    71: { icon: 'cloud-snow' }, 73: { icon: 'cloud-snow' }, 75: { icon: 'cloud-snow' },
+    80: { icon: 'cloud-drizzle' }, 81: { icon: 'cloud-drizzle' }, 82: { icon: 'cloud-rain' },
+    95: { icon: 'cloud-lightning' }, 96: { icon: 'cloud-lightning' }, 99: { icon: 'cloud-lightning' },
 };
 
-
 interface WeatherTileProps {
-  weatherData: {
-    temperature: number;
-    weatherCode: number;
-  } | null;
+  weatherData: { temperature: number; weatherCode: number; } | null;
+  aqiData: { usAqi: number; } | null;
   isLoading: boolean;
 }
 
 const AnimatedFeather = Animated.createAnimatedComponent(Feather);
 
-const WeatherTile = ({ weatherData, isLoading }: WeatherTileProps) => {
+const WeatherTile = ({ weatherData, aqiData, isLoading }: WeatherTileProps) => {
   const rotation = useSharedValue(0);
   const translationX = useSharedValue(0);
 
   const iconName = weatherData ? weatherInfo[weatherData.weatherCode]?.icon || 'sun' : 'sun';
 
   useEffect(() => {
+    cancelAnimation(rotation);
+    cancelAnimation(translationX);
+    if (isLoading) return;
+
     if (iconName === 'sun') {
       rotation.value = withRepeat(withTiming(360, { duration: 20000 }), -1, false);
     } else {
-      rotation.value = 0; // Reset if not a sun
+      rotation.value = 0;
     }
 
     if (iconName.includes('cloud')) {
         translationX.value = withRepeat(
             withSequence(
-                withTiming(10, { duration: 3000 }),
-                withTiming(-10, { duration: 3000 })
-            ),
-            -1,
-            true
-        );
+                withTiming(5, { duration: 4000 }),
+                withTiming(-5, { duration: 4000 })
+            ), -1, true );
     } else {
-        translationX.value = 0; // Reset if not a cloud
+        translationX.value = 0;
     }
-  }, [iconName]);
+  }, [iconName, isLoading]);
   
-  const animatedIconStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotate: `${rotation.value}deg` },
-        { translateX: translationX.value },
-      ],
-    };
-  });
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { translateX: translationX.value },
+    ],
+  }));
 
-  if (isLoading) {
+  const renderContent = () => {
+    if (isLoading) {
+      return <View style={styles.centered}><ActivityIndicator color={Colors.accentCalm} /></View>;
+    }
+    if (!weatherData) {
+      return <View style={styles.centered}><Text style={styles.errorText}>Weather unavailable</Text></View>;
+    }
+    
     return (
-      <View style={styles.container}>
-        <ActivityIndicator color={Colors.accentCalm} />
-      </View>
+        <>
+            <View style={styles.mainContent}>
+                <Text style={styles.temperature}>{Math.round(weatherData.temperature)}°F</Text>
+                <AnimatedFeather name={iconName} size={32} color={Colors.textPrimary} style={animatedIconStyle} />
+            </View>
+            {aqiData && <Text style={styles.subHeader}>AQI {aqiData.usAqi}</Text>}
+        </>
     );
   }
-
-  if (!weatherData) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Weather data unavailable</Text>
-      </View>
-    );
-  }
-  
-  const description = weatherInfo[weatherData.weatherCode]?.description || 'Clear';
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>What's New</Text>
-      <View style={styles.weatherContent}>
-        <AnimatedFeather name={iconName} size={48} color={Colors.textPrimary} style={animatedIconStyle} />
-        <View style={styles.tempContainer}>
-          <Text style={styles.temperature}>{Math.round(weatherData.temperature)}°F</Text>
-          <Text style={styles.description}>{description}</Text>
-        </View>
+      <Text style={styles.title}>Your Local Sky</Text>
+      <View style={styles.contentContainer}>
+        {renderContent()}
       </View>
     </View>
   );
@@ -116,37 +96,46 @@ const WeatherTile = ({ weatherData, isLoading }: WeatherTileProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(30, 30, 30, 0.75)',
     borderRadius: 16,
     padding: 20,
-    minHeight: 150,
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 100, 100, 0.2)',
+  },
+  title: {
+    ...Typography.body,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  contentContainer: {
+    flex: 1,
     justifyContent: 'center',
   },
-  header: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    ...Typography.body,
-    color: Colors.textSecondary,
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  weatherContent: {
+  mainContent: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 20,
-  },
-  tempContainer: {
-    alignItems: 'center',
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 8,
   },
   temperature: {
-    ...Typography.h1,
-    fontSize: 56,
-    color: Colors.accentCalm, // Use accent color for temperature
+    fontFamily: 'Inter_700Bold',
+    fontSize: 40, 
+    color: Colors.textPrimary,
+    lineHeight: 48,
   },
-  description: {
-    ...Typography.body,
+  subHeader: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
     color: Colors.textSecondary,
-    marginTop: -5, // Nudge it closer to the temperature
+    marginTop: 4,
   },
   errorText: {
     ...Typography.body,
