@@ -22,7 +22,10 @@ export type RootStackParamList = {
   LocationPermission: undefined;
   Settings: undefined;
   DetailedWeather: undefined; // Keep this route
-  CreatePulse: undefined;       // And also add this route
+  CreatePulse: {
+    prefill?: string;
+    locationTag?: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
